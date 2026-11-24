@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>鷸蚌相爭 AI 角色訪問</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: warm, playful classroom tool, big and legible on a projector
+   IDEA: a riverbank picture-book page; the chat is the story continuing after the fisherman's net closes
+   PICTURE: reeds, river, the snipe's beak clamped in the mussel, a net over both; the speaking character lights up
+   COLOUR and TYPE: river teal dominant, reed green support, persimmon accent; Noto Serif TC titles, Noto Sans TC body
+   LAYOUT: compact title, scene + character tabs, then a large chat column with question chips and the input */
+:root{color-scheme:light dark;
+--bg:light-dark(#f4f1e8,#0f1c1d);--panel:light-dark(#ffffff,#16292a);--ink:light-dark(#18272a,#e8eee9);--muted:light-dark(#566468,#9db1ae);
+--river:light-dark(#2f7f86,#3c9aa1);--riverd:light-dark(#1f5f66,#21595e);--reed:light-dark(#5d8a3a,#6f9e4a);--acc:#d9622b;--line:light-dark(#d9d3c4,#2a4243);
+--bird:light-dark(#f7e9d8,#21393a);--clam:light-dark(#e6f1ea,#1d3433);--fish:light-dark(#fbe4d6,#3a2a22);--fs:20px}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;overflow-x:clip}
+.wrap{max-width:1180px;margin:0 auto;padding:clamp(16px,3vw,32px) max(4vw,14px) 40px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 20px;margin-bottom:14px}
+h1{font:900 clamp(28px,4vw,44px)/1.1 "Noto Serif TC",serif;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:12px;min-height:44px}
+button:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink);padding:6px 14px}
+.ghost:hover{border-color:var(--river)}
+.stage{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;align-items:stretch}
+.scene{position:relative;border-radius:20px;overflow:hidden;background:var(--river);min-height:300px}
+.scene svg{position:absolute;inset:0;width:100%;height:100%}
+.roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-content:start}
+.role{display:flex;flex-direction:column;align-items:flex-start;text-align:start;gap:2px;padding:12px 14px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.role b{font:700 22px/1.2 "Noto Serif TC",serif}
+.role span{font-size:14px;color:var(--muted)}
+.role[aria-pressed=true]{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 25%,transparent)}
+.card{grid-column:1/-1;background:var(--panel);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px}
+.card h2{font:700 17px/1.3 "Noto Sans TC",sans-serif;margin:0 0 6px}
+.card p{margin:0;color:var(--muted);font-size:15px}
+.opts{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;align-items:center;font-size:15px}
+select{font:inherit;font-size:16px;min-height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);padding:0 10px}
+.chat{margin-top:18px;background:var(--panel);border:1.5px solid var(--line);border-radius:20px;display:flex;flex-direction:column}
+.log{padding:18px clamp(12px,2.5vw,26px);display:flex;flex-direction:column;gap:14px;min-height:260px;font-size:var(--fs)}
+.empty{color:var(--muted);text-align:center;margin:auto;font-size:17px;max-width:30em}
+.msg{max-width:min(46em,92%);padding:12px 16px;border-radius:16px;line-height:1.65;position:relative;white-space:pre-wrap}
+.q{align-self:flex-end;background:color-mix(in srgb,var(--river) 16%,var(--panel));border-bottom-right-radius:4px}
+.a{align-self:flex-start;border-bottom-left-radius:4px;border:1.5px solid var(--line)}
+.a.bird{background:var(--bird)}.a.clam{background:var(--clam)}.a.fish{background:var(--fish)}
+.who{display:block;font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:2px}
+.del{position:absolute;top:6px;right:8px;min-height:32px;padding:0 8px;font-size:13px;border:0;background:transparent;color:var(--muted);border-radius:8px}
+.del:hover{color:var(--acc)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:12px clamp(12px,2.5vw,26px) 0;border-top:1.5px solid var(--line)}
+.chip{border:1.5px dashed var(--river);background:transparent;color:var(--ink);padding:6px 14px;font-size:16px}
+.chip:hover{background:color-mix(in srgb,var(--river) 12%,transparent)}
+#f{display:flex;gap:10px;padding:12px clamp(12px,2.5vw,26px) 16px;align-items:flex-end}
+textarea{flex:1;font:inherit;font-size:max(16px,calc(var(--fs) - 2px));border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;min-height:56px;resize:vertical;background:var(--bg);color:var(--ink)}
+.send{background:var(--acc);color:#fff;border:0;padding:0 24px;font-weight:700;min-height:56px;font-size:18px}
+.send:disabled{opacity:.5;cursor:default}
+.note{font-size:13px;color:var(--muted);padding:0 clamp(12px,2.5vw,26px) 14px;margin:0}
+.warn{background:color-mix(in srgb,var(--acc) 14%,var(--panel));border-radius:12px;padding:10px 14px;margin:0 clamp(12px,2.5vw,26px) 12px;font-size:15px}
+.warn[hidden]{display:none}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:14px;padding:4px 12px;border-radius:99px;border:1.5px solid var(--line);color:var(--muted);min-height:44px}
+.pill i{width:10px;height:10px;border-radius:50%;background:#9aa;flex:none}
+.pill.on i{background:#2e9e5b}.pill.key i{background:var(--river)}.pill.off i{background:var(--acc)}
+dialog{border:0;border-radius:20px;padding:0;width:min(560px,94vw);background:var(--panel);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(10,20,20,.5)}
+.dlg{padding:22px clamp(16px,4vw,28px)}
+.dlg h2{font:700 22px/1.3 "Noto Serif TC",serif;margin:0 0 6px}
+.dlg p{font-size:15px;color:var(--muted);margin:6px 0}
+.dlg label{display:block;font-size:15px;margin-top:14px;font-weight:500}
+.dlg input,.dlg select{width:100%;margin-top:6px;font:inherit;font-size:16px;min-height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);padding:0 12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:18px}
+.primary{background:var(--river);color:#fff;border:0;padding:0 20px;font-weight:700}
+.modes{display:grid;gap:8px;margin-top:8px}
+.modes label{display:flex;gap:10px;align-items:flex-start;margin:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;font-weight:400;cursor:pointer}
+.modes input{width:auto;min-height:0;margin:4px 0 0}
+.modes b{display:block}
+.modes span{font-size:14px;color:var(--muted)}
+@media(min-width:1400px){.wrap{max-width:1320px}.scene{min-height:340px}}
+@media(max-width:820px){.stage{grid-template-columns:minmax(0,1fr)}.scene{min-height:220px}header{align-items:flex-start}}
+@media(max-width:600px){
+  .wrap{padding-bottom:0}
+  .roles{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .role{align-items:center;padding:8px 6px}.role span{display:none}.role b{font-size:20px}
+  .scene{min-height:180px;border-radius:14px}
+  .opts{flex-direction:column;align-items:stretch}.opts label{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .chat{border-radius:16px;margin-left:-4px;margin-right:-4px}
+  .log{min-height:200px;padding:14px 12px}
+  .msg{max-width:96%;padding:10px 12px}
+  .chips{flex-wrap:nowrap;overflow-x:auto;padding:10px 12px 0;scroll-snap-type:x proximity}
+  .chip{flex:none;scroll-snap-align:start;white-space:nowrap}
+  #f{position:sticky;bottom:0;background:var(--panel);padding:10px 12px;border-radius:0 0 16px 16px;z-index:2}
+  textarea{min-height:48px}.send{min-height:48px;padding:0 16px}
+  .tools{width:100%}.tools .ghost{flex:1;padding:6px 8px}.pill{flex-basis:100%;justify-content:center}
+}
+@media(max-height:500px) and (orientation:landscape){.scene{min-height:160px}.stage{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}}
+@media(prefers-reduced-motion:no-preference){.glow{animation:pulse 1.6s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>《鷸蚌相爭》AI 角色訪問</h1>
+    <p class="sub">五年級中國語文．第五課．分組提問，聽聽被捉後的角色怎樣說</p>
+  </div>
+  <div class="tools">
+    <span class="pill" id="pill" role="status"><i></i><span id="pillT">AI 連線檢查中</span></span>
+    <button class="ghost" id="setBtn">AI 設定</button>
+    <button class="ghost" id="smaller" aria-label="縮小字體">字 −</button>
+    <button class="ghost" id="bigger" aria-label="放大字體">字 ＋</button>
+    <button class="ghost" id="reset">重新開始</button>
+  </div>
+</header>
+
+<section class="stage">
+  <div class="scene" aria-label="河邊插圖：鷸的長嘴被蚌夾住，漁夫的網罩住了牠們">
+    <svg viewBox="0 0 600 340" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d9a8"/><stop offset="1" stop-color="#f3eed9"/></linearGradient>
+        <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3e959b"/><stop offset="1" stop-color="#1f5f66"/></linearGradient>
+        <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9d6aa"/><stop offset="1" stop-color="#c9ae78"/></linearGradient>
+        <g id="reed"><path d="M0 0 C4 -40 2 -80 8 -120" stroke="#5d8a3a" stroke-width="4" fill="none"/><path d="M6 -70 C20 -90 30 -95 40 -92" stroke="#6f9e4a" stroke-width="4" fill="none"/><ellipse cx="9" cy="-128" rx="5" ry="14" fill="#8a5a33"/></g>
+        <pattern id="net" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H18M0 0V18" stroke="#3b2a1e" stroke-width="2" fill="none"/></pattern>
+      </defs>
+      <rect width="600" height="340" fill="url(#sky)"/>
+      <circle cx="500" cy="70" r="36" fill="#fbe7b9"/>
+      <rect y="150" width="600" height="190" fill="url(#water)"/>
+      <path d="M40 190 H140 M300 175 H420 M460 205 H560" stroke="#a9d6d4" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+      <path d="M0 260 C120 230 260 240 380 255 C470 266 540 250 600 245 V340 H0Z" fill="url(#sand)"/>
+      <g transform="translate(30 270)"><use href="#reed"/><use href="#reed" x="22" transform="scale(1 .85)"/><use href="#reed" x="44"/></g>
+      <g transform="translate(520 262)"><use href="#reed"/><use href="#reed" x="20" transform="scale(1 1.1)"/><use href="#reed" x="40" transform="scale(1 .8)"/></g>
+      <!-- mussel -->
+      <g id="clamG" transform="translate(300 268)">
+        <ellipse cx="0" cy="22" rx="70" ry="10" fill="#000" opacity=".15"/>
+        <path d="M-62 10 C-50 -30 40 -36 64 4 C30 16 -30 20 -62 10Z" fill="#4c4f5e"/>
+        <path d="M-62 10 C-30 22 30 22 64 4 C40 30 -40 34 -62 10Z" fill="#373a46"/>
+        <path d="M-40 -6 C-10 -20 30 -18 50 0" stroke="#7d8295" stroke-width="3" fill="none"/>
+        <circle cx="70" cy="-6" r="0" class="mark"/>
+      </g>
+      <!-- snipe -->
+      <g id="birdG" transform="translate(180 170)">
+        <ellipse cx="10" cy="100" rx="40" ry="6" fill="#000" opacity=".15"/>
+        <path d="M-6 60 L-14 100 M16 62 L22 100" stroke="#8a5a33" stroke-width="4"/>
+        <ellipse cx="4" cy="38" rx="44" ry="28" fill="#9b6a3f"/>
+        <path d="M-36 30 C-20 10 20 12 40 30 C20 40 -20 46 -36 30Z" fill="#7a4f2c"/>
+        <circle cx="50" cy="6" r="18" fill="#a8774a"/>
+        <circle cx="56" cy="2" r="3.5" fill="#18272a"/>
+        <path d="M64 8 L126 96" stroke="#5a3d24" stroke-width="6" stroke-linecap="round"/>
+      </g>
+      <!-- net -->
+      <path d="M110 160 C180 120 420 130 410 210 L420 300 L110 300Z" fill="url(#net)" opacity=".55"/>
+      <path d="M110 160 C180 120 420 130 410 210" stroke="#3b2a1e" stroke-width="4" fill="none"/>
+      <!-- fisherman -->
+      <g id="fishG" transform="translate(470 120)">
+        <path d="M-40 140 C-36 70 36 70 40 140Z" fill="#5b6b4a"/>
+        <circle cx="0" cy="58" r="24" fill="#e8b98e"/>
+        <path d="M-50 44 L0 10 L50 44Z" fill="#c9a25c"/>
+        <path d="M-10 64 Q0 72 10 64" stroke="#3b2a1e" stroke-width="3" fill="none"/>
+        <circle cx="-8" cy="54" r="2.6" fill="#3b2a1e"/><circle cx="8" cy="54" r="2.6" fill="#3b2a1e"/>
+        <path d="M-30 96 L-70 50" stroke="#8a5a33" stroke-width="5" stroke-linecap="round"/>
+      </g>
+      <circle id="spot" r="70" fill="none" stroke="#d9622b" stroke-width="5" stroke-dasharray="10 8" cx="215" cy="210" class="glow"/>
+    </svg>
+  </div>
+
+  <div class="roles" role="group" aria-label="選擇訪問角色">
+    <button class="role" data-r="bird" aria-pressed="true"><b>鷸</b><span>長嘴被夾住的水鳥</span></button>
+    <button class="role" data-r="clam" aria-pressed="false"><b>蚌</b><span>死不放口的河蚌</span></button>
+    <button class="role" data-r="fish" aria-pressed="false"><b>漁夫</b><span>一手捉兩個的人</span></button>
+    <div class="card">
+      <h2 id="sitTitle">現在的情境</h2>
+      <p id="sit"></p>
+      <div class="opts">
+        <label>提問組別
+          <select id="group"></select>
+        </label>
+        <label>回答語言
+          <select id="lang"><option value="written">書面語</option><option value="canto">粵語口語</option></select>
+        </label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chat" aria-label="訪問對話">
+  <div class="log" id="log" aria-live="polite"></div>
+  <p class="warn" id="warn" hidden></p>
+  <div class="chips" id="chips" aria-label="提問例子"></div>
+  <form id="f">
+    <textarea id="qIn" rows="2" placeholder="輸入學生的問題，例如：你被捉住後有甚麼感受？" aria-label="學生的問題"></textarea>
+    <button class="send" id="send" type="submit">提問</button>
+  </form>
+  <p class="note">由老師操作，學生毋須登入。AI 以角色身份回答，內容只限課文故事；請老師留意回應是否恰當，可按「刪除」移除。沒有網絡時可在「AI 設定」轉用離線模式。</p>
+</section>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgT">
+  <form method="dialog" class="dlg" id="dlgF">
+    <h2 id="dlgT">AI 設定</h2>
+    <p>網頁會按以下次序選擇回答方式。在 claude.ai 開啟時會自動使用內置 AI；在學校網站或本機開啟時，可輸入 Anthropic API 金鑰，或使用離線模式。</p>
+    <div class="modes" role="radiogroup" aria-label="回答方式">
+      <label><input type="radio" name="mode" value="auto"><div><b>自動</b><span>有內置 AI 用內置 AI，否則有金鑰用金鑰，再不然用離線模式。</span></div></label>
+      <label><input type="radio" name="mode" value="offline"><div><b>只用離線模式</b><span>不連網，只回答畫面上的提問例子（已預先寫好答案）。</span></div></label>
+    </div>
+    <label for="key">Anthropic API 金鑰（選填）</label>
+    <input id="key" type="password" autocomplete="off" placeholder="sk-ant-…">
+    <label for="model">模型</label>
+    <select id="model"><option value="claude-haiku-5-5">Claude Haiku 5.5（較快）</option><option value="claude-sonnet-5-5">Claude Sonnet 5.5（較細緻）</option></select>
+    <p>金鑰只儲存在這部電腦的瀏覽器，不會寫入檔案。請勿在學生電腦或公用電腦儲存金鑰；使用後可按「清除金鑰」。</p>
+    <div class="row">
+      <button type="button" class="ghost" id="clearKey">清除金鑰</button>
+      <button type="button" class="ghost" id="cancel">取消</button>
+      <button type="submit" class="primary" id="save">儲存</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+{
+const R={
+  bird:{name:'鷸',cls:'bird',spot:[215,210],
+    sit:'鷸的長嘴被蚌夾住，兩個爭持不下，結果被漁夫用網罩住，現在一起被放進漁夫的魚簍裏。',
+    persona:'你是《戰國策．鷸蚌相爭》裏的「鷸」，一隻嘴細長、腿長、羽毛茶褐色的水鳥。你本來想趁蚌張開殼曬太陽時啄食牠的肉，結果長嘴被蚌夾住。你曾傲慢地威脅蚌：「今日不雨，明日不雨，即有死蚌。」你和蚌誰也不肯讓步，最後被漁夫一起捉住，現在在漁夫的魚簍裏。你開始後悔自己太驕傲、太貪心、不肯讓步。',
+    qs:['你被漁夫捉住後有甚麼感受？','你為甚麼不肯先放棄？','你說「今日不雨，明日不雨」時在想甚麼？','如果可以重來一次，你會怎樣做？','你想對蚌說甚麼？'],
+    off:['唉，我又餓又累，嘴巴還痛得要命。現在躺在漁夫的魚簍裏，我才知道自己真是太傻了！',
+      '我以為自己比蚌強，只要多等一兩天，牠就會被太陽曬死。我太驕傲了，根本不想認輸。',
+      '我心想：「哼，不下雨你就會乾死，看你能撐多久！」我只想嚇唬蚌，逼牠先放開我。',
+      '我會先放下面子，跟蚌好好說：「我們一起放手吧！」這樣我們都能平安離開，不會便宜了漁夫。',
+      '蚌兄，對不起，是我先來啄你的。如果我們早點各讓一步，現在就不會一起被捉了。'],
+    offc:['唉，我又肚餓又攰，個嘴仲痛到死。而家喺漁夫個魚簍度，先知自己真係好傻！',
+      '我以為自己勁過蚌，等多一兩日佢就會俾太陽曬死。我太驕傲喇，根本唔想認輸。',
+      '我心諗：「哼，唔落雨你就會乾死，睇你頂得幾耐！」我只係想嚇吓蚌，逼佢放開我。',
+      '我會放低面子，同蚌好好咁講：「我哋一齊放手啦！」咁大家都可以平安走，唔會益咗漁夫。',
+      '蚌兄，對唔住，係我先嚟啄你嘅。如果我哋早啲各讓一步，而家就唔會一齊俾人捉咗。']},
+  clam:{name:'蚌',cls:'clam',spot:[300,262],
+    sit:'蚌正張開殼曬太陽時被鷸啄肉，於是緊緊夾住鷸的嘴。兩個互不相讓，結果被漁夫一起捉進魚簍。',
+    persona:'你是《戰國策．鷸蚌相爭》裏的「蚌」，一隻生活在淡水中的河蚌，有兩片橢圓形的殼。你正在河邊張開殼曬太陽，鷸卻來啄你的肉，你立刻合上殼夾住牠的嘴。你不甘示弱地回應鷸：「今日不出，明日不出，即有死鷸。」你們誰也不肯放開，最後被漁夫一起捉住，現在在漁夫的魚簍裏。你覺得自己保護自己沒有錯，但也開始明白死不放口令雙方都輸了。',
+    qs:['鷸啄你的時候，你為甚麼立刻夾住牠？','你覺得自己有沒有做錯？','你為甚麼說「今日不出，明日不出」？','如果可以重來一次，你會怎樣做？','你想對鷸說甚麼？'],
+    off:['我正在舒舒服服地曬太陽，牠卻突然來啄我的肉！我當然要立刻合上殼，保護自己。',
+      '保護自己沒有錯，可是我一直死不放口，只想着要贏，結果連自己也輸掉了。',
+      '鷸說我會乾死，我也不甘示弱：「我不放開，你就會餓死！」我們就這樣你一句、我一句，誰也不讓誰。',
+      '我會在牠痛得想走時就放開牠，再快快躲回水裏。退一步，反而能保住性命。',
+      '鷸啊，我們爭了半天，最後得到好處的卻是漁夫。下次遇到爭執，我們都冷靜一點吧。'],
+    offc:['我正喺度舒舒服服咁曬太陽，佢突然走嚟啄我啲肉！我梗係即刻合埋個殼保護自己啦。',
+      '保護自己冇錯，但我一直死唔放口，淨係諗住要贏，結果連自己都輸埋。',
+      '鷸話我會乾死，我都唔示弱：「我唔放你，你就會餓死！」我哋就咁你一句我一句，邊個都唔肯讓。',
+      '我會喺佢痛到想走嗰陣就放開佢，再快啲匿返落水。退一步，反而可以保住條命。',
+      '鷸呀，我哋爭咗成日，最後著數嘅竟然係漁夫。下次有爭執，大家都冷靜啲啦。']},
+  fish:{name:'漁夫',cls:'fish',spot:[470,200],
+    sit:'漁夫在河邊看見鷸和蚌爭持不下，不費吹灰之力就把兩個一起捉住，正帶着魚簍回家。',
+    persona:'你是《戰國策．鷸蚌相爭》裏的「漁夫」（漁者）。你在河邊看見鷸的嘴被蚌夾住，兩個爭持不下，誰也不肯放開，於是你輕輕鬆鬆就把牠們一起捉住（漁者得而并擒之）。你心情很好，也很樂意說出你看到的道理：雙方相爭，讓第三者得利。',
+    qs:['你看見鷸和蚌時心裏在想甚麼？','你為甚麼可以一下子捉住兩個？','你覺得鷸和蚌輸在哪裏？','你想給同學甚麼忠告？','「漁人得利」是甚麼意思？'],
+    off:['我心裏偷笑：牠們只顧着吵架，完全沒有留意我走近。今天真是我的好日子！',
+      '因為牠們一個夾住，一個被夾住，誰也不肯放開，根本跑不掉。我只要伸手一抓，就「并擒之」了。',
+      '牠們輸在太固執，只想着要對方先認輸，卻忘了身邊還有危險。',
+      '同學們，和別人爭吵時，不妨各讓一步。爭到兩敗俱傷，好處就會落在別人手上。',
+      '就是雙方爭持不下，第三者不費力氣就得到好處，就像我一下子捉住了鷸和蚌。'],
+    offc:['我心入面偷笑：佢哋淨係掛住嗌交，完全冇留意我行近。今日真係我嘅好日子！',
+      '因為佢哋一個夾住，一個俾人夾住，邊個都唔肯放，根本走唔甩。我只要伸手一執，就「并擒之」喇。',
+      '佢哋輸在太固執，淨係想對方先認輸，唔記得身邊仲有危險。',
+      '同學仔，同人爭拗嘅時候，不妨各讓一步。爭到兩敗俱傷，著數就會落入人哋手。',
+      '即係雙方爭持不下，第三者唔使點出力就攞到著數，好似我一下就捉晒鷸同蚌咁。']}
+};
+const $=id=>document.getElementById(id);
+const log=$('log'),qIn=$('qIn'),send=$('send'),warn=$('warn');
+let role='bird',busy=false,hist={bird:[],clam:[],fish:[]},fs=20,sample=null,ready=false,ctrl=null;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+$('group').innerHTML=['老師','第1組','第2組','第3組','第4組','第5組','第6組','第7組','第8組'].map(g=>`<option>${g}</option>`).join('');
+
+function setRole(r){
+  if(busy)return;
+  role=r;
+  document.querySelectorAll('.role').forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===r));
+  $('sitTitle').textContent='現在的情境（'+R[r].name+'）';
+  $('sit').textContent=R[r].sit;
+  const sp=$('spot');sp.setAttribute('cx',R[r].spot[0]);sp.setAttribute('cy',R[r].spot[1]);
+  $('chips').innerHTML=R[r].qs.map((q,i)=>`<button class="chip" type="button" data-i="${i}">${esc(q)}</button>`).join('');
+  qIn.placeholder='向「'+R[r].name+'」提問，例如：'+R[r].qs[0];
+  render();
+}
+function render(){
+  const h=hist[role];
+  if(!h.length){log.innerHTML=`<p class="empty">選一個角色，再請各組代表提出問題。<br>可以按下面的提問例子，或自行輸入。</p>`;return}
+  log.innerHTML=h.map((m,i)=>m.who==='q'
+    ?`<div class="msg q"><span class="who">${esc(m.g)}問</span>${esc(m.t)}</div>`
+    :`<div class="msg a ${R[role].cls}"><span class="who">${esc(R[role].name)}答</span><span data-a="${i}">${esc(m.t)}</span>${m.t&&!busy?`<button class="del" data-del="${i}" aria-label="刪除這個回應">刪除</button>`:''}</div>`).join('');
+  log.lastElementChild?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function buildPrompt(q){
+  const r=R[role],canto=$('lang').value==='canto';
+  const past=hist[role].filter(m=>m.t).slice(-10).map(m=>(m.who==='q'?'學生問：':r.name+'答：')+m.t).join('\n');
+  return `${r.persona}
+
+你正在接受香港小學五年級學生的訪問（中文課《鷸蚌相爭》）。請遵守：
+1. 以第一人稱、「${r.name}」的身份回答，語氣生動、有角色個性，像故事角色在說話。
+2. ${canto?'用香港粵語口語（繁體字）回答。':'用規範的現代漢語書面語（繁體字）回答。'}
+3. 用小五學生聽得懂的字詞，回答二至四句，不超過八十個字。不用表情符號、不用列點、不加引號以外的標記。
+4. 內容要符合課文：鷸啄蚌肉，蚌夾住鷸嘴，雙方互相威脅、不肯相舍，最後漁者并擒之。可以適當引用原文句子。不要編造與課文矛盾的情節，不描述血腥或死亡細節。
+5. 適當時帶出「互相退讓、尊重對方、雙方相爭會讓第三者得利」的道理，但不要說教，也不要每句都講道理。
+6. 如果問題與故事無關、不禮貌或不適合小學生，就以角色身份友善地把話題帶回故事。不要詢問或提及學生的個人資料。
+
+${past?'之前的訪問內容：\n'+past+'\n\n':''}現在學生問：${q}
+請直接以「${r.name}」的身份回答，不要加上角色名稱或任何前綴。`;
+}
+let cfg={mode:'auto',key:'',model:'claude-haiku-5-5'};
+try{Object.assign(cfg,JSON.parse(localStorage.getItem('yb-cfg')||'{}'))}catch(e){}
+const saveCfg=()=>{try{localStorage.setItem('yb-cfg',JSON.stringify(cfg))}catch(e){}};
+function mode(){if(cfg.mode==='offline')return 'offline';if(sample)return 'claude';if(cfg.key)return 'key';return ready?'offline':'wait'}
+function pill(){
+  const m=mode(),el=$('pill');
+  el.className='pill '+({claude:'on',key:'key',offline:'off'}[m]||'');
+  $('pillT').textContent={claude:'AI：已連線（claude.ai）',key:'AI：已連線（API 金鑰）',offline:'離線模式：只答提問例子',wait:'AI 連線檢查中'}[m];
+}
+async function viaKey(p,onText){
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:ctrl.signal,
+    headers:{'content-type':'application/json','x-api-key':cfg.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:cfg.model,max_tokens:400,messages:[{role:'user',content:p}]})});
+  if(!r.ok){const e=new Error('http');e.code=r.status===401?'bad_key':r.status===429?'rate_limited':'http';throw e}
+  const j=await r.json();const t=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');onText(t);return t;
+}
+async function viaOffline(q,onText){
+  const r=R[role],i=r.qs.findIndex(x=>x===q.trim());
+  if(i<0){const e=new Error('off');e.code='offline_q';throw e}
+  const t=($('lang').value==='canto'?r.offc:r.off)[i];
+  for(let k=1;k<=t.length;k+=2){if(ctrl.signal.aborted)break;onText(t.slice(0,k));await new Promise(z=>setTimeout(z,35))}
+  onText(t);return t;
+}
+async function ask(q){
+  q=q.trim(); if(!q||busy)return;
+  const m=mode();
+  if(m==='wait'){warn.hidden=false;warn.textContent='AI 連線檢查中，請稍候再試。';return}
+  if(m==='offline'&&!R[role].qs.includes(q)){warn.hidden=false;warn.textContent='離線模式只可回答下面的提問例子。如要自由提問，請在「AI 設定」輸入 API 金鑰，或在 claude.ai 開啟此頁。';return}
+  warn.hidden=true;busy=true;send.disabled=true;
+  const p=buildPrompt(q);
+  hist[role].push({who:'q',t:q,g:$('group').value});
+  const h=hist[role];h.push({who:'a',t:''});const idx=h.length-1;render();
+  const span=log.querySelector(`[data-a="${idx}"]`);span.textContent='思考中……';
+  ctrl=new AbortController();
+  const onText=t=>{span.textContent=t||'思考中……'};
+  try{
+    let t;
+    if(m==='claude'){const res=await sample(p,{signal:ctrl.signal,cache:false,onText:({text})=>onText(text)});t=res.text}
+    else if(m==='key')t=await viaKey(p,onText);
+    else t=await viaOffline(q,onText);
+    h[idx].t=(t||'').trim()||'（沒有回應，請再試一次。）';
+    qIn.value='';
+  }catch(e){
+    h.splice(idx-1,2);
+    warn.hidden=false;
+    const c=e&&e.code;
+    warn.textContent=c==='rate_limited'?'提問太密了，請等一會再試。':c==='not_granted'?'未獲允許使用 AI。請在提示出現時按允許。':c==='bad_key'?'API 金鑰無效，請在「AI 設定」檢查。':(e&&e.name==='AbortError')?'已停止。':'回應失敗，請檢查網絡後再試一次。';
+    qIn.value=q;
+  }finally{busy=false;send.disabled=false;ctrl=null;render()}
+}
+
+// settings dialog
+const dlg=$('dlg');
+$('setBtn').addEventListener('click',()=>{
+  document.querySelectorAll('[name=mode]').forEach(r=>r.checked=r.value===cfg.mode);
+  $('key').value=cfg.key;$('model').value=cfg.model;
+  if(dlg.showModal)dlg.showModal();else dlg.setAttribute('open','');
+});
+$('cancel').addEventListener('click',()=>dlg.close());
+$('clearKey').addEventListener('click',()=>{$('key').value='';cfg.key='';saveCfg();pill()});
+$('dlgF').addEventListener('submit',e=>{
+  e.preventDefault();
+  cfg.mode=(document.querySelector('[name=mode]:checked')||{}).value||'auto';
+  cfg.key=$('key').value.trim();cfg.model=$('model').value;saveCfg();pill();warn.hidden=true;dlg.close();
+});
+
+document.querySelectorAll('.role').forEach(b=>b.addEventListener('click',()=>setRole(b.dataset.r)));
+$('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b){qIn.value=R[role].qs[+b.dataset.i];qIn.focus()}});
+log.addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b||busy)return;const i=+b.dataset.del;hist[role].splice(i-1,2);render()});
+$('f').addEventListener('submit',e=>{e.preventDefault();ask(qIn.value)});
+qIn.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();ask(qIn.value)}});
+$('reset').addEventListener('click',()=>{if(ctrl)ctrl.abort();hist={bird:[],clam:[],fish:[]};render()});
+const setFs=v=>{fs=Math.max(16,Math.min(32,v));document.documentElement.style.setProperty('--fs',fs+'px');try{localStorage.setItem('yb-fs',fs)}catch(e){}};
+$('bigger').addEventListener('click',()=>setFs(fs+2));
+$('smaller').addEventListener('click',()=>setFs(fs-2));
+try{const v=+localStorage.getItem('yb-fs');if(v)setFs(v)}catch(e){}
+
+setRole('bird');
+let tries=0;
+const initAI=()=>{if(window.claude&&window.claude.use){window.claude.use('sample').then(sm=>{sample=sm;ready=true;pill()}).catch(()=>{ready=true;pill()})}
+  else if(tries++<20)setTimeout(initAI,250);
+  else{ready=true;pill()}};
+pill();initAI();
+}
+</script>
+</body>
+</html>
